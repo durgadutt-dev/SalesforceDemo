@@ -1,0 +1,43 @@
+name: Salesforce Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Change to your target branch
+
+jobs:
+  deploy-to-salesforce:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the code from the repository
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Step 2: Set up Node.js (required for Salesforce CLI)
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'  # Recommended Node.js version
+
+    # Step 3: Install Salesforce CLI
+    - name: Install Salesforce CLI
+      run: |
+        wget https://developer.salesforce.com/media/salesforce-cli/sfdx-cli/channels/stable/sfdx-cli-linux-x64.tar.xz
+        mkdir sfdx-cli
+        tar xJf sfdx-cli-linux-x64.tar.xz -C sfdx-cli --strip-components 1
+        ./sfdx-cli/install
+
+    # Step 4: Authenticate with your Salesforce org
+    - name: Authenticate with Salesforce
+      run: sfdx auth:jwt:grant --clientid ${{ secrets.SALESFORCE_CLIENT_ID }} --jwtkeyfile assets/server.key --username ${{ secrets.SALESFORCE_USERNAME }} --instanceurl https://login.salesforce.com
+      env:
+        SFDX_AUTH_URL: ${{ secrets.SFDX_AUTH_URL }}
+
+    # Step 5: Deploy metadata to the Salesforce org
+    - name: Deploy metadata
+      run: sfdx force:source:deploy -p force-app -w 10
+
+    # Step 6: Run validation (optional)
+    - name: Validate deployment
+      run: sfdx force:mdapi:deploy:report
